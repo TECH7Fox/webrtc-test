@@ -11,10 +11,6 @@ async function handleMessage(event) {
         clientId = data.clientId;
         console.log("connected to server with id " + clientId);
     }
-    if (data.sender === clientId) {
-        return;
-    }
-    console.log(data);
     if (data.type === "offer") {
         console.log("offer received");
         await rtc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -60,34 +56,37 @@ rtc.onicecandidate = (event) => {
     }
 };
 
-rtc.ontrack = (event) => {
+rtc.ontrack = ({streams}) => {
     console.log("track received");
+    document.getElementById("audio").srcObject = streams[0];
+    document.getElementById("video").srcObject = streams[0];
 };
 
 rtc.onconnectionstatechange = (event) => {
     console.log("connection state changed");
-    console.log(event);
     if (rtc.connectionState === "connected") {
         console.log("webrtc connected!!!");
     };
 };
 
-const steam = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-console.log("stream received");
-const audioTrack = steam.getAudioTracks()[0];
-rtc.addTrack(audioTrack);
-console.log("track added");
-
-document.getElementById("call").addEventListener("click", async () => {
-    const offer = await rtc.createOffer();
-    await rtc.setLocalDescription(offer);
+rtc.onnegotiationneeded = async () => {
+    console.log("negotiation needed");
+    await rtc.setLocalDescription(await rtc.createOffer());
     const outbound = {
         type: "offer",
-        sender: clientId,
         offer: rtc.localDescription
     };
     ws.send(JSON.stringify(outbound));
-    console.log("offer sent");
+};
+
+
+document.getElementById("call").addEventListener("click", async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+    document.getElementById("video").srcObject = stream[0];
+    document.getElementById("audio").srcObject = stream[0];
+    for (const track of stream.getTracks()) {
+        rtc.addTrack(track, stream);
+    }
 });
 
 

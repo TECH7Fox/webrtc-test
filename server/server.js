@@ -13,7 +13,6 @@ wss.on('connection', (ws) => {
 
     const message = {
         type: "connected",
-        clientId: id,
         sender: id,
         text: "Welcome to the chat!",
         color: color,
@@ -30,8 +29,11 @@ wss.on('connection', (ws) => {
         message.color = metadata.color;
         const outbound = JSON.stringify(message);
 
-        [...clients.keys()].forEach((client) => {
-            client.send(outbound);
+        // send to all clients, except the sender
+        clients.forEach((metadata, client) => {
+            if (client !== ws) {
+                client.send(outbound);
+            }
         });
     });
 
